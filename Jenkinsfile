@@ -2,12 +2,13 @@ pipeline {
     agent any
 
     tools {
-        maven 'Maven3'   // Your configured Maven in Jenkins
-        jdk 'JDK17'      // Your configured JDK in Jenkins
+        maven 'Maven3'   // Name from Jenkins Global Tool Configuration
+        jdk 'JDK17'      // Name from Jenkins Global Tool Configuration
     }
 
     environment {
         DOCKER_IMAGE = "pavanreddych/javabank:latest"
+        APP_DIR = "Banking-Management-System" // Repo folder containing pom.xml
     }
 
     stages {
@@ -19,22 +20,28 @@ pipeline {
 
         stage('Build with Maven') {
             steps {
-                bat 'mvn clean package -DskipTests'
-                bat 'dir target'  // ✅ Verify jar exists
+                dir("${APP_DIR}") {
+                    bat 'mvn clean package -DskipTests'
+                    bat 'dir target'  // ✅ Verify JAR exists
+                }
             }
         }
 
         stage('Prepare Docker Context') {
             steps {
-                // Copy jar from target/ to workspace root for Docker build context
-                bat 'copy target\\*.jar .'
-                bat 'dir' // ✅ List files in workspace to confirm jar is here
+                // Copy JAR to workspace root so Docker build context can find it
+                bat "copy ${APP_DIR}\\target\\*.jar ."
+                bat 'dir' // ✅ Confirm jar is here
             }
         }
 
         stage('Docker Login') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                withCredentials([usernamePassword(
+                    credentialsId: 'dockerhub-creds', 
+                    usernameVariable: 'DOCKER_USER', 
+                    passwordVariable: 'DOCKER_PASS'
+                )]) {
                     bat 'docker login -u %DOCKER_USER% -p %DOCKER_PASS%'
                 }
             }
